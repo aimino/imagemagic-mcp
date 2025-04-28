@@ -1,10 +1,11 @@
 # ImageMagick MCPサーバ
 
-ImageMagick MCPサーバは、MCPプロトコル（Model Context Protocol）を使用してImageMagickの画像処理機能を提供するサーバです。現在は画像の二値化機能のみを実装しています。
+ImageMagick MCPサーバは、MCPプロトコル（Model Context Protocol）を使用してImageMagickの画像処理機能を提供するサーバです。画像の二値化機能と色調整機能を実装しています。
 
 ## 機能
 
 - 画像の二値化処理（閾値を指定可能）
+- 画像の色調整処理（色相、輝度、彩度を調整可能）
 - MCPプロトコルによるAIアシスタントとの連携
 - 処理結果の画像表示
 
@@ -65,6 +66,7 @@ mcp run imagemagick_server.py
 
 このサーバは以下のツールを提供します:
 - `binarize_image`: ImageMagickを使用して画像を二値化
+- `modify_colors`: ImageMagickを使用して画像の色相、輝度、彩度を調整
 
 ### MCPサーバの設定
 
@@ -101,7 +103,9 @@ MCPサーバを使用するには、`cline_mcp_settings.json`ファイルを適�
 
 サーバが実行され、設定されると、Claudeやその他のMCPクライアントがこれを使用して画像処理を行うことができます。
 
-例えば、Claudeでは以下のように使用できます:
+#### 二値化機能の使用例
+
+Claudeでは以下のように使用できます:
 
 ```
 imagemagick-mcpツールを使って画像を二値化したいです。
@@ -115,6 +119,30 @@ Claudeは以下のようなコマンドでMCPサーバを使用して画像を�
   "threshold": 0.5
 }
 ```
+
+#### 色調整機能の使用例
+
+Claudeでは以下のように使用できます:
+
+```
+imagemagick-mcpツールを使って画像の色調を調整したいです。
+```
+
+Claudeは以下のようなコマンドでMCPサーバを使用して画像の色調を調整できます:
+
+```json
+{
+  "image_path": "/path/to/image.jpg",
+  "hue_shift": 180.0,
+  "brightness": 110.0,
+  "saturation": 120.0
+}
+```
+
+各パラメータの説明:
+- `hue_shift`: 色相の変更量（-360.0〜360.0度、0.0が元の色相）
+- `brightness`: 輝度の調整（0.0〜200.0、100.0が元の輝度）
+- `saturation`: 彩度の調整（0.0〜200.0、100.0が元の彩度）
 
 ### 仕組み
 
