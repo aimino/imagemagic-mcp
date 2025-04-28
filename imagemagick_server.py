@@ -45,9 +45,13 @@ def main(transport: str) -> int:
             
             # nameパラメータに基づいて処理を分岐
             is_binarize = False
+            is_resize = False
             if name == 'binarize_image':
                 log_to_file(f"Detected binarize_image call, will perform binarization")
                 is_binarize = True
+            elif name == 'resize_image':
+                log_to_file(f"Detected resize_image call, will perform resizing")
+                is_resize = True
             
             # 共通の引数処理
             image_path = None
@@ -105,6 +109,102 @@ def main(transport: str) -> int:
                 
                 log_to_file(f"Image binarized successfully. Output saved to: {output_path}")
                 return [types.TextContent(type="text", text=f"Image binarized successfully. Output saved to: {output_path}")]
+            
+            # リサイズ処理
+            elif is_resize:
+                # リサイズ用パラメータの取得
+                width = None
+                height = None
+                scale = None
+                
+                if arguments and isinstance(arguments, dict):
+                    if "width" in arguments:
+                        width = arguments.get("width")
+                        log_to_file(f"DEBUG: Using width from arguments: {width}")
+                    if "height" in arguments:
+                        height = arguments.get("height")
+                        log_to_file(f"DEBUG: Using height from arguments: {height}")
+                    if "scale" in arguments:
+                        scale = arguments.get("scale")
+                        log_to_file(f"DEBUG: Using scale from arguments: {scale}")
+                
+                log_to_file(f"After argument processing - image_path: {image_path}, width: {width}, height: {height}, scale: {scale}")
+                
+                # パラメータの型変換と検証
+                try:
+                    # scaleが指定されている場合は、widthとheightは無視する
+                    if scale is not None:
+                        scale_float = float(scale)
+                        if scale_float <= 0:
+                            log_to_file(f"Scale value must be positive, using default: 1.0")
+                            scale_float = 1.0
+                        width_float = None
+                        height_float = None
+                    else:
+                        scale_float = None
+                        # widthとheightの処理
+                        if width is not None:
+                            width_float = float(width)
+                            if width_float <= 0:
+                                log_to_file(f"Width value must be positive, using original width")
+                                width_float = None
+                        else:
+                            width_float = None
+                        
+                        if height is not None:
+                            height_float = float(height)
+                            if height_float <= 0:
+                                log_to_file(f"Height value must be positive, using original height")
+                                height_float = None
+                        else:
+                            height_float = None
+                        
+                        # widthもheightも指定されていない場合は、元のサイズを使用
+                        if width_float is None and height_float is None and scale_float is None:
+                            log_to_file(f"No resize parameters specified, using original size")
+                            return [types.TextContent(type="text", text=f"Error: No resize parameters specified")]
+                except (TypeError, ValueError) as e:
+                    log_to_file(f"Error converting resize parameters to float: {e}")
+                    return [types.TextContent(type="text", text=f"Error: Invalid resize parameters - {str(e)}")]
+                
+                output_path = os.path.join(output_dir, f"{file_name}_resized{file_ext}")
+                
+                # Process the image with ImageMagick using Wand
+                with Image(filename=image_path) as img:
+                    original_width = img.width
+                    original_height = img.height
+                    
+                    # リサイズ処理
+                    if scale_float is not None:
+                        # スケールに基づいてリサイズ
+                        new_width = int(original_width * scale_float)
+                        new_height = int(original_height * scale_float)
+                        log_to_file(f"Resizing image using scale factor {scale_float} to {new_width}x{new_height}")
+                        img.resize(new_width, new_height)
+                    else:
+                        # widthとheightに基づいてリサイズ
+                        if width_float is not None and height_float is not None:
+                            # 両方指定されている場合
+                            log_to_file(f"Resizing image to {width_float}x{height_float}")
+                            img.resize(int(width_float), int(height_float))
+                        elif width_float is not None:
+                            # widthのみ指定されている場合、アスペクト比を維持
+                            aspect_ratio = original_height / original_width
+                            new_height = int(width_float * aspect_ratio)
+                            log_to_file(f"Resizing image to width {width_float} (height {new_height} calculated to maintain aspect ratio)")
+                            img.resize(int(width_float), new_height)
+                        elif height_float is not None:
+                            # heightのみ指定されている場合、アスペクト比を維持
+                            aspect_ratio = original_width / original_height
+                            new_width = int(height_float * aspect_ratio)
+                            log_to_file(f"Resizing image to height {height_float} (width {new_width} calculated to maintain aspect ratio)")
+                            img.resize(new_width, int(height_float))
+                    
+                    # Save the processed image
+                    img.save(filename=output_path)
+                
+                log_to_file(f"Image resized successfully. Output saved to: {output_path}")
+                return [types.TextContent(type="text", text=f"Image resized successfully. Output saved to: {output_path}")]
             
             # 色調変更処理
             else:
@@ -243,6 +343,35 @@ def main(transport: str) -> int:
                             "type": "number",
                             "description": "Saturation adjustment (0.0 to 200.0, 100.0 is original)",
                             "default": 100.0
+                        }
+                    }
+                }
+            ),
+            types.Tool(
+                name="resize_image",
+                description="Resize an image using ImageMagick",
+                inputSchema={
+                    "type": "object",
+                    "required": ["image_path"],
+                    "properties": {
+                        "image_path": {
+                            "type": "string",
+                            "description": "Path to the image file to resize"
+                        },
+                        "width": {
+                            "type": "number",
+                            "description": "New width in pixels. If only width is specified, height will be calculated to maintain aspect ratio.",
+                            "default": None
+                        },
+                        "height": {
+                            "type": "number",
+                            "description": "New height in pixels. If only height is specified, width will be calculated to maintain aspect ratio.",
+                            "default": None
+                        },
+                        "scale": {
+                            "type": "number",
+                            "description": "Scale factor (e.g., 0.5 for half size, 2.0 for double size). If specified, width and height are ignored.",
+                            "default": None
                         }
                     }
                 }
