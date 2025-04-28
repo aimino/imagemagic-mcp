@@ -28,205 +28,34 @@ def main(transport: str) -> int:
     app = Server("ImageMagick MCP Server")
 
     @app.call_tool()
-    async def binarize_image(
-        image_path: str = None,
-        threshold: float = 0.5,
-        **kwargs
+    async def process_image(
+        name: str = None,
+        arguments: dict = None
     ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
-        """Binarize an image using ImageMagick.
+        """Process an image using ImageMagick.
         
         Args:
-            image_path: Path to the image file to binarize
-            threshold: Threshold value for binarization (0.0 to 1.0)
+            name: Tool name (should be 'modify_colors' or 'binarize_image')
+            arguments: Dictionary containing the actual arguments
         """
         try:
-            log_to_file(f"Raw input - image_path: {repr(image_path)}, threshold: {repr(threshold)}, kwargs: {kwargs}")
+            log_to_file(f"FUNCTION CALLED: process_image")
+            log_to_file(f"Raw input - name: {repr(name)}, arguments: {repr(arguments)}")
             log_to_file(f"DEBUG: Received arguments: {locals()}")
             
-            # 特殊なケース：image_pathが'binarize_image'で、thresholdが辞書の場合
-            if image_path == 'binarize_image' and isinstance(threshold, dict):
-                log_to_file(f"DEBUG: Detected special case - image_path is 'binarize_image' and threshold is a dictionary")
-                if "image_path" in threshold:
-                    image_path = threshold.get("image_path")
-                    log_to_file(f"DEBUG: Using image_path from threshold dictionary: {image_path}")
-                if "threshold" in threshold:
-                    threshold = threshold.get("threshold")
-                    log_to_file(f"DEBUG: Using threshold from threshold dictionary: {threshold}")
+            # nameパラメータに基づいて処理を分岐
+            is_binarize = False
+            if name == 'binarize_image':
+                log_to_file(f"Detected binarize_image call, will perform binarization")
+                is_binarize = True
             
-            # デバッグ出力をさらに詳細に
-            log_to_file(f"DEBUG: kwargs type: {type(kwargs)}")
-            log_to_file(f"DEBUG: kwargs keys: {kwargs.keys() if kwargs else 'None'}")
-            if "arguments" in kwargs:
-                log_to_file(f"DEBUG: arguments type: {type(kwargs['arguments'])}")
-                log_to_file(f"DEBUG: arguments content: {kwargs['arguments']}")
-            
-            # 引数の処理をさらに改善
-            if kwargs:
-                if "arguments" in kwargs:
-                    args = kwargs["arguments"]
-                    log_to_file(f"DEBUG: Found arguments in kwargs: {args}")
-                    if isinstance(args, dict):
-                        if "image_path" in args:
-                            image_path = args["image_path"]
-                            log_to_file(f"DEBUG: Using image_path from arguments: {image_path}")
-                        if "threshold" in args:
-                            threshold = args["threshold"]
-                            log_to_file(f"DEBUG: Using threshold from arguments: {threshold}")
-            elif isinstance(image_path, dict):
-                print(f"Image path is a dictionary: {image_path}", file=sys.stderr)
-                if "image_path" in image_path:
-                    image_path = image_path.get("image_path")
-                if "threshold" in image_path:
-                    threshold = image_path.get("threshold")
-            elif image_path and isinstance(image_path, str) and image_path.strip().startswith("{"):
-                try:
-                    json_data = json.loads(image_path)
-                    print(f"Parsed JSON from image_path: {json_data}", file=sys.stderr)
-                    if "image_path" in json_data:
-                        image_path = json_data.get("image_path")
-                    if "threshold" in json_data:
-                        threshold = json_data.get("threshold")
-                except json.JSONDecodeError:
-                    print(f"Failed to parse JSON from image_path", file=sys.stderr)
-            
-            # Validate inputs
-            if not image_path:
-                log_to_file("Error: No image path provided")
-                return [types.TextContent(type="text", text="Error: No image path provided")]
-            
-            log_to_file(f"Checking if file exists: {image_path}")
-            if not os.path.exists(image_path):
-                log_to_file(f"Error: Image file not found at {image_path}")
-                return [types.TextContent(type="text", text=f"Error: Image file not found at {image_path}")]
-            
-            # Ensure threshold is within valid range
-            threshold_float = float(threshold)
-            if threshold_float < 0.0 or threshold_float > 1.0:
-                threshold_float = 0.5
-                print(f"Threshold value out of range, using default: {threshold_float}", file=sys.stderr)
-            
-            # Create output filename
-            file_name, file_ext = os.path.splitext(os.path.basename(image_path))
-            output_dir = os.path.dirname(image_path)
-            output_path = os.path.join(output_dir, f"{file_name}_binarized{file_ext}")
-            
-            # Process the image with ImageMagick using Wand
-            with Image(filename=image_path) as img:
-                # Convert to grayscale first
-                img.type = 'grayscale'
-                # Apply threshold to binarize
-                img.threshold(threshold_float)
-                # Save the processed image
-                img.save(filename=output_path)
-            
-            print(f"Image binarized successfully. Output saved to: {output_path}", file=sys.stderr)
-            
-            # Read the processed image as base64 for embedding
-            with open(output_path, 'rb') as img_file:
-                img_data = base64.b64encode(img_file.read()).decode('utf-8')
-            
-            # Determine MIME type based on file extension
-            mime_type = "image/jpeg"  # Default
-            if file_ext.lower() in ['.png']:
-                mime_type = "image/png"
-            elif file_ext.lower() in ['.gif']:
-                mime_type = "image/gif"
-            elif file_ext.lower() in ['.bmp']:
-                mime_type = "image/bmp"
-            elif file_ext.lower() in ['.tiff', '.tif']:
-                mime_type = "image/tiff"
-            
-            # 画像データのサイズを小さくするために、画像をリサイズするオプションを追加
-            # 元の画像データを返す代わりに、処理済み画像へのパスを返す
-            return [
-                types.TextContent(type="text", text=f"Image binarized successfully. Output saved to: {output_path}"),
-            ]
-        except Exception as e:
-            traceback_str = traceback.format_exc()
-            print(f"Error in binarize_image: {traceback_str}", file=sys.stderr)
-            
-            return [
-                types.TextContent(type="text", text=f"Error: {str(e)}")
-            ]
-
-    @app.call_tool()
-    async def modify_colors(
-        image_path: str = None,
-        hue_shift: float = 0.0,
-        brightness: float = 100.0,
-        saturation: float = 100.0,
-        **kwargs
-    ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
-        """Modify the colors of an image using ImageMagick.
-        
-        Args:
-            image_path: Path to the image file to modify
-            hue_shift: Hue shift value in degrees (-360.0 to 360.0)
-            brightness: Brightness adjustment (0.0 to 200.0, 100.0 is original)
-            saturation: Saturation adjustment (0.0 to 200.0, 100.0 is original)
-        """
-        try:
-            log_to_file(f"Raw input - image_path: {repr(image_path)}, hue_shift: {repr(hue_shift)}, brightness: {repr(brightness)}, saturation: {repr(saturation)}, kwargs: {kwargs}")
-            log_to_file(f"DEBUG: Received arguments: {locals()}")
-            
-            # 引数の処理を簡略化して改善
-            # まず、kwargsから引数を取得
-            if kwargs and "arguments" in kwargs and isinstance(kwargs["arguments"], dict):
-                args = kwargs["arguments"]
-                log_to_file(f"DEBUG: Found arguments in kwargs: {args}")
-                if "image_path" in args:
-                    image_path = args["image_path"]
+            # 共通の引数処理
+            image_path = None
+            if arguments and isinstance(arguments, dict):
+                log_to_file(f"DEBUG: Processing arguments dictionary: {arguments}")
+                if "image_path" in arguments:
+                    image_path = arguments.get("image_path")
                     log_to_file(f"DEBUG: Using image_path from arguments: {image_path}")
-                if "hue_shift" in args:
-                    hue_shift = args["hue_shift"]
-                    log_to_file(f"DEBUG: Using hue_shift from arguments: {hue_shift}")
-                if "brightness" in args:
-                    brightness = args["brightness"]
-                    log_to_file(f"DEBUG: Using brightness from arguments: {brightness}")
-                if "saturation" in args:
-                    saturation = args["saturation"]
-                    log_to_file(f"DEBUG: Using saturation from arguments: {saturation}")
-            # 特殊なケース：image_pathが'modify_colors'で、hue_shiftが辞書の場合
-            elif image_path == 'modify_colors' and isinstance(hue_shift, dict):
-                log_to_file(f"DEBUG: Detected special case - image_path is 'modify_colors' and hue_shift is a dictionary")
-                if "image_path" in hue_shift:
-                    image_path = hue_shift.get("image_path")
-                    log_to_file(f"DEBUG: Using image_path from hue_shift dictionary: {image_path}")
-                if "hue_shift" in hue_shift:
-                    hue_shift = hue_shift.get("hue_shift")
-                    log_to_file(f"DEBUG: Using hue_shift from hue_shift dictionary: {hue_shift}")
-                if "brightness" in hue_shift:
-                    brightness = hue_shift.get("brightness")
-                    log_to_file(f"DEBUG: Using brightness from hue_shift dictionary: {brightness}")
-                if "saturation" in hue_shift:
-                    saturation = hue_shift.get("saturation")
-                    log_to_file(f"DEBUG: Using saturation from hue_shift dictionary: {saturation}")
-            # image_pathが辞書の場合
-            elif isinstance(image_path, dict):
-                log_to_file(f"Image path is a dictionary: {image_path}")
-                if "image_path" in image_path:
-                    image_path = image_path.get("image_path")
-                if "hue_shift" in image_path:
-                    hue_shift = image_path.get("hue_shift")
-                if "brightness" in image_path:
-                    brightness = image_path.get("brightness")
-                if "saturation" in image_path:
-                    saturation = image_path.get("saturation")
-            # image_pathがJSON文字列の場合
-            elif image_path and isinstance(image_path, str) and image_path.strip().startswith("{"):
-                try:
-                    json_data = json.loads(image_path)
-                    log_to_file(f"Parsed JSON from image_path: {json_data}")
-                    if "image_path" in json_data:
-                        image_path = json_data.get("image_path")
-                    if "hue_shift" in json_data:
-                        hue_shift = json_data.get("hue_shift")
-                    if "brightness" in json_data:
-                        brightness = json_data.get("brightness")
-                    if "saturation" in json_data:
-                        saturation = json_data.get("saturation")
-                except json.JSONDecodeError:
-                    log_to_file(f"Failed to parse JSON from image_path")
             
             # Validate inputs
             if not image_path:
@@ -238,104 +67,129 @@ def main(transport: str) -> int:
                 log_to_file(f"Error: Image file not found at {image_path}")
                 return [types.TextContent(type="text", text=f"Error: Image file not found at {image_path}")]
             
-            # パラメータの型変換と範囲チェック（エラーハンドリングを追加）
-            # 特殊なケースの処理結果をログに出力
-            log_to_file(f"After argument processing - image_path: {image_path}, hue_shift: {hue_shift}, brightness: {brightness}, saturation: {saturation}")
-            
-            # 各パラメータを個別に処理して型変換エラーを回避
-            # 色相変更量の処理
-            try:
-                hue_shift_float = float(hue_shift) if hue_shift is not None else 0.0
-                # 値を-360〜360の範囲に正規化
-                while hue_shift_float < -360.0:
-                    hue_shift_float += 360.0
-                while hue_shift_float > 360.0:
-                    hue_shift_float -= 360.0
-            except (TypeError, ValueError) as e:
-                log_to_file(f"Error converting hue_shift to float: {e}")
-                hue_shift_float = 0.0
-            
-            # 輝度の処理
-            try:
-                brightness_float = float(brightness) if brightness is not None else 100.0
-                if brightness_float < 0.0:
-                    brightness_float = 0.0
-                    log_to_file(f"Brightness value out of range, using minimum: {brightness_float}")
-                elif brightness_float > 200.0:
-                    brightness_float = 200.0
-                    log_to_file(f"Brightness value out of range, using maximum: {brightness_float}")
-            except (TypeError, ValueError) as e:
-                log_to_file(f"Error converting brightness to float: {e}")
-                # 特殊なケースで取得したbrightnessの値がある場合はそれを使用
-                if image_path == 'modify_colors' and isinstance(hue_shift, dict) and 'brightness' in hue_shift:
-                    try:
-                        brightness_float = float(hue_shift['brightness'])
-                        log_to_file(f"Using brightness from hue_shift dictionary for float conversion: {brightness_float}")
-                    except (TypeError, ValueError):
-                        brightness_float = 100.0
-                else:
-                    brightness_float = 100.0
-            
-            # 彩度の処理
-            try:
-                saturation_float = float(saturation) if saturation is not None else 100.0
-                if saturation_float < 0.0:
-                    saturation_float = 0.0
-                    log_to_file(f"Saturation value out of range, using minimum: {saturation_float}")
-                elif saturation_float > 200.0:
-                    saturation_float = 200.0
-                    log_to_file(f"Saturation value out of range, using maximum: {saturation_float}")
-            except (TypeError, ValueError) as e:
-                log_to_file(f"Error converting saturation to float: {e}")
-                saturation_float = 100.0
-            
-            log_to_file(f"Using normalized values - hue_shift: {hue_shift_float}, brightness: {brightness_float}, saturation: {saturation_float}")
-            
             # Create output filename
             file_name, file_ext = os.path.splitext(os.path.basename(image_path))
             output_dir = os.path.dirname(image_path)
-            output_path = os.path.join(output_dir, f"{file_name}_color_modified{file_ext}")
             
-            # Process the image with ImageMagick using Wand
-            with Image(filename=image_path) as img:
-                # 色相、輝度、彩度を変更
-                # modulate関数のパラメータ:
-                # - brightness: 輝度（0〜200、100が元の輝度）
-                # - saturation: 彩度（0〜200、100が元の彩度）
-                # - hue: 色相（0〜200、100が元の色相）
-                # 色相の変更は100 + hue_shift * 100 / 360 で変換
-                img.modulate(
-                    brightness=brightness_float,
-                    saturation=saturation_float,
-                    hue=100.0 + hue_shift_float * 100.0 / 360.0
-                )
-                # Save the processed image
-                img.save(filename=output_path)
+            # 二値化処理
+            if is_binarize:
+                # 二値化用パラメータの取得
+                threshold = 0.5  # デフォルト値
+                if arguments and isinstance(arguments, dict) and "threshold" in arguments:
+                    threshold = arguments.get("threshold")
+                    log_to_file(f"DEBUG: Using threshold from arguments: {threshold}")
+                
+                log_to_file(f"After argument processing - image_path: {image_path}, threshold: {threshold}")
+                
+                # しきい値の型変換と範囲チェック
+                try:
+                    threshold_float = float(threshold) if threshold is not None else 0.5
+                    if threshold_float < 0.0 or threshold_float > 1.0:
+                        threshold_float = 0.5
+                        log_to_file(f"Threshold value out of range, using default: {threshold_float}")
+                except (TypeError, ValueError) as e:
+                    log_to_file(f"Error converting threshold to float: {e}")
+                    threshold_float = 0.5
+                    log_to_file(f"Using default threshold due to conversion error: {threshold_float}")
+                
+                output_path = os.path.join(output_dir, f"{file_name}_binarized{file_ext}")
+                
+                # Process the image with ImageMagick using Wand
+                with Image(filename=image_path) as img:
+                    # Convert to grayscale first
+                    img.type = 'grayscale'
+                    # Apply threshold to binarize
+                    img.threshold(threshold_float)
+                    # Save the processed image
+                    img.save(filename=output_path)
+                
+                log_to_file(f"Image binarized successfully. Output saved to: {output_path}")
+                return [types.TextContent(type="text", text=f"Image binarized successfully. Output saved to: {output_path}")]
             
-            log_to_file(f"Image colors modified successfully. Output saved to: {output_path}")
-            
-            # Read the processed image as base64 for embedding
-            with open(output_path, 'rb') as img_file:
-                img_data = base64.b64encode(img_file.read()).decode('utf-8')
-            
-            # Determine MIME type based on file extension
-            mime_type = "image/jpeg"  # Default
-            if file_ext.lower() in ['.png']:
-                mime_type = "image/png"
-            elif file_ext.lower() in ['.gif']:
-                mime_type = "image/gif"
-            elif file_ext.lower() in ['.bmp']:
-                mime_type = "image/bmp"
-            elif file_ext.lower() in ['.tiff', '.tif']:
-                mime_type = "image/tiff"
-            
-            # 元の画像データを返す代わりに、処理済み画像へのパスを返す
-            return [
-                types.TextContent(type="text", text=f"Image colors modified successfully. Output saved to: {output_path}"),
-            ]
+            # 色調変更処理
+            else:
+                # 色調変更用パラメータの取得
+                hue_shift = 0.0  # デフォルト値
+                brightness = 100.0  # デフォルト値
+                saturation = 100.0  # デフォルト値
+                
+                if arguments and isinstance(arguments, dict):
+                    if "hue_shift" in arguments:
+                        hue_shift = arguments.get("hue_shift")
+                        log_to_file(f"DEBUG: Using hue_shift from arguments: {hue_shift}")
+                    if "brightness" in arguments:
+                        brightness = arguments.get("brightness")
+                        log_to_file(f"DEBUG: Using brightness from arguments: {brightness}")
+                    if "saturation" in arguments:
+                        saturation = arguments.get("saturation")
+                        log_to_file(f"DEBUG: Using saturation from arguments: {saturation}")
+                
+                log_to_file(f"After argument processing - image_path: {image_path}, hue_shift: {hue_shift}, brightness: {brightness}, saturation: {saturation}")
+                
+                # パラメータの型変換と範囲チェック
+                # 色相変更量の処理
+                try:
+                    hue_shift_float = float(hue_shift) if hue_shift is not None else 0.0
+                    # 値を-360〜360の範囲に正規化
+                    while hue_shift_float < -360.0:
+                        hue_shift_float += 360.0
+                    while hue_shift_float > 360.0:
+                        hue_shift_float -= 360.0
+                except (TypeError, ValueError) as e:
+                    log_to_file(f"Error converting hue_shift to float: {e}")
+                    hue_shift_float = 0.0
+                
+                # 輝度の処理
+                try:
+                    brightness_float = float(brightness) if brightness is not None else 100.0
+                    if brightness_float < 0.0:
+                        brightness_float = 0.0
+                        log_to_file(f"Brightness value out of range, using minimum: {brightness_float}")
+                    elif brightness_float > 200.0:
+                        brightness_float = 200.0
+                        log_to_file(f"Brightness value out of range, using maximum: {brightness_float}")
+                except (TypeError, ValueError) as e:
+                    log_to_file(f"Error converting brightness to float: {e}")
+                    brightness_float = 100.0
+                
+                # 彩度の処理
+                try:
+                    saturation_float = float(saturation) if saturation is not None else 100.0
+                    if saturation_float < 0.0:
+                        saturation_float = 0.0
+                        log_to_file(f"Saturation value out of range, using minimum: {saturation_float}")
+                    elif saturation_float > 200.0:
+                        saturation_float = 200.0
+                        log_to_file(f"Saturation value out of range, using maximum: {saturation_float}")
+                except (TypeError, ValueError) as e:
+                    log_to_file(f"Error converting saturation to float: {e}")
+                    saturation_float = 100.0
+                
+                log_to_file(f"Using normalized values - hue_shift: {hue_shift_float}, brightness: {brightness_float}, saturation: {saturation_float}")
+                
+                output_path = os.path.join(output_dir, f"{file_name}_color_modified{file_ext}")
+                
+                # Process the image with ImageMagick using Wand
+                with Image(filename=image_path) as img:
+                    # 色相、輝度、彩度を変更
+                    # modulate関数のパラメータ:
+                    # - brightness: 輝度（0〜200、100が元の輝度）
+                    # - saturation: 彩度（0〜200、100が元の彩度）
+                    # - hue: 色相（0〜200、100が元の色相）
+                    # 色相の変更は100 + hue_shift * 100 / 360 で変換
+                    img.modulate(
+                        brightness=brightness_float,
+                        saturation=saturation_float,
+                        hue=100.0 + hue_shift_float * 100.0 / 360.0
+                    )
+                    # Save the processed image
+                    img.save(filename=output_path)
+                
+                log_to_file(f"Image colors modified successfully. Output saved to: {output_path}")
+                return [types.TextContent(type="text", text=f"Image colors modified successfully. Output saved to: {output_path}")]
         except Exception as e:
             traceback_str = traceback.format_exc()
-            log_to_file(f"Error in modify_colors: {traceback_str}")
+            log_to_file(f"Error in process_image: {traceback_str}")
             
             return [
                 types.TextContent(type="text", text=f"Error: {str(e)}")
