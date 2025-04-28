@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "imagemagick-mcp": {
+      "command": "python",
+      "args": ["imagemagick_server.py"],
+      "disabled": false,
+      "alwaysAllow": []
+    }
+  }
+}
