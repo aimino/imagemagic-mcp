@@ -6,6 +6,7 @@ The ImageMagick MCP Server is a server that provides ImageMagick image processin
 
 - Image binarization processing (threshold can be specified)
 - Image color adjustment (hue, brightness, saturation can be adjusted)
+- Image resizing (width, height, or scale factor can be specified)
 - Integration with AI assistants via MCP protocol
 - Display of processed image results
 
@@ -67,6 +68,7 @@ mcp run imagemagick_server.py
 This server provides the following tools:
 - `binarize_image`: Binarize an image using ImageMagick
 - `modify_colors`: Adjust the hue, brightness, and saturation of an image using ImageMagick
+- `resize_image`: Resize an image using ImageMagick
 
 ### MCP Server Configuration
 
@@ -143,6 +145,47 @@ Parameter descriptions:
 - `hue_shift`: Amount of hue change (-360.0 to 360.0 degrees, 0.0 is the original hue)
 - `brightness`: Brightness adjustment (0.0 to 200.0, 100.0 is the original brightness)
 - `saturation`: Saturation adjustment (0.0 to 200.0, 100.0 is the original saturation)
+
+#### Example of Using the Resizing Feature
+
+In Claude, you can use it as follows:
+
+```
+I want to resize an image using the imagemagick-mcp tool.
+```
+
+Claude can resize an image using the MCP server with a command like this:
+
+```json
+{
+  "image_path": "/path/to/image.jpg",
+  "width": 800,
+  "height": 600
+}
+```
+
+Or resize by specifying only one dimension to maintain aspect ratio:
+
+```json
+{
+  "image_path": "/path/to/image.jpg",
+  "width": 800
+}
+```
+
+Or resize using a scale factor:
+
+```json
+{
+  "image_path": "/path/to/image.jpg",
+  "scale": 0.5
+}
+```
+
+Parameter descriptions:
+- `width`: New width in pixels. If only width is specified, height will be calculated to maintain aspect ratio.
+- `height`: New height in pixels. If only height is specified, width will be calculated to maintain aspect ratio.
+- `scale`: Scale factor (e.g., 0.5 for half size, 2.0 for double size). If specified, width and height are ignored.
 
 ### How It Works
 
