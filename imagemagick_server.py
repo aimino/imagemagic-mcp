@@ -10,6 +10,16 @@ import traceback
 from wand.image import Image
 import tempfile
 import base64
+import datetime
+
+# ログファイルの設定
+log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "imagemagick_server_log.txt")
+
+def log_to_file(message):
+    """ログをファイルに出力する"""
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(log_file_path, "a", encoding="utf-8") as log_file:
+        log_file.write(f"[{timestamp}] {message}\n")
 
 @click.command()
 @click.option("--transport", default="stdio", type=click.Choice(["stdio"]), help="Transport type (only stdio supported)")
@@ -30,10 +40,39 @@ def main(transport: str) -> int:
             threshold: Threshold value for binarization (0.0 to 1.0)
         """
         try:
-            print(f"Raw input - image_path: {repr(image_path)}, threshold: {repr(threshold)}, kwargs: {kwargs}", file=sys.stderr)
+            log_to_file(f"Raw input - image_path: {repr(image_path)}, threshold: {repr(threshold)}, kwargs: {kwargs}")
+            log_to_file(f"DEBUG: Received arguments: {locals()}")
             
-            # Handle input as JSON if provided
-            if isinstance(image_path, dict):
+            # 特殊なケース：image_pathが'binarize_image'で、thresholdが辞書の場合
+            if image_path == 'binarize_image' and isinstance(threshold, dict):
+                log_to_file(f"DEBUG: Detected special case - image_path is 'binarize_image' and threshold is a dictionary")
+                if "image_path" in threshold:
+                    image_path = threshold.get("image_path")
+                    log_to_file(f"DEBUG: Using image_path from threshold dictionary: {image_path}")
+                if "threshold" in threshold:
+                    threshold = threshold.get("threshold")
+                    log_to_file(f"DEBUG: Using threshold from threshold dictionary: {threshold}")
+            
+            # デバッグ出力をさらに詳細に
+            log_to_file(f"DEBUG: kwargs type: {type(kwargs)}")
+            log_to_file(f"DEBUG: kwargs keys: {kwargs.keys() if kwargs else 'None'}")
+            if "arguments" in kwargs:
+                log_to_file(f"DEBUG: arguments type: {type(kwargs['arguments'])}")
+                log_to_file(f"DEBUG: arguments content: {kwargs['arguments']}")
+            
+            # 引数の処理をさらに改善
+            if kwargs:
+                if "arguments" in kwargs:
+                    args = kwargs["arguments"]
+                    log_to_file(f"DEBUG: Found arguments in kwargs: {args}")
+                    if isinstance(args, dict):
+                        if "image_path" in args:
+                            image_path = args["image_path"]
+                            log_to_file(f"DEBUG: Using image_path from arguments: {image_path}")
+                        if "threshold" in args:
+                            threshold = args["threshold"]
+                            log_to_file(f"DEBUG: Using threshold from arguments: {threshold}")
+            elif isinstance(image_path, dict):
                 print(f"Image path is a dictionary: {image_path}", file=sys.stderr)
                 if "image_path" in image_path:
                     image_path = image_path.get("image_path")
@@ -52,9 +91,12 @@ def main(transport: str) -> int:
             
             # Validate inputs
             if not image_path:
+                log_to_file("Error: No image path provided")
                 return [types.TextContent(type="text", text="Error: No image path provided")]
             
+            log_to_file(f"Checking if file exists: {image_path}")
             if not os.path.exists(image_path):
+                log_to_file(f"Error: Image file not found at {image_path}")
                 return [types.TextContent(type="text", text=f"Error: Image file not found at {image_path}")]
             
             # Ensure threshold is within valid range
@@ -65,7 +107,8 @@ def main(transport: str) -> int:
             
             # Create output filename
             file_name, file_ext = os.path.splitext(os.path.basename(image_path))
-            output_path = os.path.join(tempfile.gettempdir(), f"{file_name}_binarized{file_ext}")
+            output_dir = os.path.dirname(image_path)
+            output_path = os.path.join(output_dir, f"{file_name}_binarized{file_ext}")
             
             # Process the image with ImageMagick using Wand
             with Image(filename=image_path) as img:
@@ -93,13 +136,11 @@ def main(transport: str) -> int:
             elif file_ext.lower() in ['.tiff', '.tif']:
                 mime_type = "image/tiff"
             
+            # 画像データのサイズを小さくするために、画像をリサイズするオプションを追加
+            # 元の画像データを返す代わりに、処理済み画像へのパスを返す
             return [
                 types.TextContent(type="text", text=f"Image binarized successfully. Output saved to: {output_path}"),
-                types.ImageContent(
-                    type="image",
-                    format=mime_type,
-                    data=img_data
-                )
+                types.TextContent(type="text", text=f"画像の二値化が完了しました。出力ファイル: {output_path}")
             ]
         except Exception as e:
             traceback_str = traceback.format_exc()
