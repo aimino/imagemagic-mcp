@@ -1,76 +1,76 @@
-# ImageMagick MCPサーバ
+# ImageMagick MCP Server
 
-ImageMagick MCPサーバは、MCPプロトコル（Model Context Protocol）を使用してImageMagickの画像処理機能を提供するサーバです。画像の二値化機能と色調整機能を実装しています。
+The ImageMagick MCP Server is a server that provides ImageMagick image processing capabilities using the MCP protocol (Model Context Protocol). It implements image binarization and color adjustment functions.
 
-## 機能
+## Features
 
-- 画像の二値化処理（閾値を指定可能）
-- 画像の色調整処理（色相、輝度、彩度を調整可能）
-- MCPプロトコルによるAIアシスタントとの連携
-- 処理結果の画像表示
+- Image binarization processing (threshold can be specified)
+- Image color adjustment (hue, brightness, saturation can be adjusted)
+- Integration with AI assistants via MCP protocol
+- Display of processed image results
 
-## 必要条件
+## Requirements
 
-- Python 3.8以上
+- Python 3.8 or higher
 - ImageMagick
-- MCPライブラリ
-- Wandライブラリ（ImageMagickのPythonバインディング）
-- Clickライブラリ
+- MCP library
+- Wand library (Python bindings for ImageMagick)
+- Click library
 
-## インストール
+## Installation
 
-1. リポジトリをクローン:
+1. Clone the repository:
 ```bash
 git clone https://github.com/aimino/imagemagic-mcp.git
 cd imagemagic-mcp
 ```
 
-2. 依存関係のインストール:
+2. Install dependencies:
 
-### Windows環境の場合:
+### For Windows:
 ```bash
-# ImageMagickのインストール
-# 公式サイトからインストーラーをダウンロードしてインストール
+# Install ImageMagick
+# Download and install the installer from the official site
 # https://imagemagick.org/script/download.php#windows
-# インストール時に「Install development headers and libraries for C and C++」オプションを選択
+# Select "Install development headers and libraries for C and C++" option during installation
 
-# Pythonパッケージのインストール
+# Install Python packages
 pip install wand mcp click
 ```
 
-### Linux環境の場合:
+### For Linux:
 ```bash
-# ImageMagickのインストール
+# Install ImageMagick
 sudo apt-get update
 sudo apt-get install -y imagemagick libmagickwand-dev
 
-# Pythonパッケージのインストール
+# Install Python packages
 pip install wand mcp click
 ```
 
-## 使用方法
+## Usage
 
-### サーバの実行
+### Running the Server
 
-サーバは以下の方法で実行できます:
+You can run the server using the following methods:
 
-1. 直接Pythonで実行:
+1. Directly with Python:
 ```bash
 python imagemagick_server.py
 ```
 
-2. MCPのCLIツールを使用:
+2. Using the MCP CLI tool:
 ```bash
 mcp run imagemagick_server.py
 ```
 
-このサーバは以下のツールを提供します:
-- `binarize_image`: ImageMagickを使用して画像を二値化
-- `modify_colors`: ImageMagickを使用して画像の色相、輝度、彩度を調整
+This server provides the following tools:
+- `binarize_image`: Binarize an image using ImageMagick
+- `modify_colors`: Adjust the hue, brightness, and saturation of an image using ImageMagick
 
-### MCPサーバの設定
+### MCP Server Configuration
 
-MCPサーバを使用するには、`cline_mcp_settings.json`ファイルを適切な場所に作成する必要があります:
+To use the MCP server, you need to create a `cline_mcp_settings.json` file in the appropriate location:
 
 #### Windows
 ```
@@ -82,7 +82,7 @@ MCPサーバを使用するには、`cline_mcp_settings.json`ファイルを適�
 ~/.config/cline/cline_mcp_settings.json
 ```
 
-`cline_mcp_settings.json`ファイルの内容は以下のようにします:
+The contents of the `cline_mcp_settings.json` file should be as follows:
 
 ```json
 {
@@ -97,21 +97,21 @@ MCPサーバを使用するには、`cline_mcp_settings.json`ファイルを適�
 }
 ```
 
-`C:/path/to/imagemagic-mcp`は実際のリポジトリのパスに置き換えてください。
+Replace `C:/path/to/imagemagic-mcp` with the actual path to the repository.
 
-### Claudeやその他のMCPクライアントでのテスト
+### Testing with Claude or Other MCP Clients
 
-サーバが実行され、設定されると、Claudeやその他のMCPクライアントがこれを使用して画像処理を行うことができます。
+Once the server is running and configured, Claude or other MCP clients can use it for image processing.
 
-#### 二値化機能の使用例
+#### Example of Using the Binarization Feature
 
-Claudeでは以下のように使用できます:
+In Claude, you can use it as follows:
 
 ```
-imagemagick-mcpツールを使って画像を二値化したいです。
+I want to binarize an image using the imagemagick-mcp tool.
 ```
 
-Claudeは以下のようなコマンドでMCPサーバを使用して画像を二値化できます:
+Claude can binarize an image using the MCP server with a command like this:
 
 ```json
 {
@@ -120,15 +120,15 @@ Claudeは以下のようなコマンドでMCPサーバを使用して画像を�
 }
 ```
 
-#### 色調整機能の使用例
+#### Example of Using the Color Adjustment Feature
 
-Claudeでは以下のように使用できます:
+In Claude, you can use it as follows:
 
 ```
-imagemagick-mcpツールを使って画像の色調を調整したいです。
+I want to adjust the colors of an image using the imagemagick-mcp tool.
 ```
 
-Claudeは以下のようなコマンドでMCPサーバを使用して画像の色調を調整できます:
+Claude can adjust the colors of an image using the MCP server with a command like this:
 
 ```json
 {
@@ -139,20 +139,20 @@ Claudeは以下のようなコマンドでMCPサーバを使用して画像の�
 }
 ```
 
-各パラメータの説明:
-- `hue_shift`: 色相の変更量（-360.0〜360.0度、0.0が元の色相）
-- `brightness`: 輝度の調整（0.0〜200.0、100.0が元の輝度）
-- `saturation`: 彩度の調整（0.0〜200.0、100.0が元の彩度）
+Parameter descriptions:
+- `hue_shift`: Amount of hue change (-360.0 to 360.0 degrees, 0.0 is the original hue)
+- `brightness`: Brightness adjustment (0.0 to 200.0, 100.0 is the original brightness)
+- `saturation`: Saturation adjustment (0.0 to 200.0, 100.0 is the original saturation)
 
-### 仕組み
+### How It Works
 
-サーバはMCPプロトコルを使用してAIアシスタントからのリクエストを受け取り、ImageMagick（Wandライブラリ経由）を使用して画像処理を行います。通信はstdio（標準入出力）を通じて行われ、Claudeやその他のMCP対応アシスタントと互換性があります。
+The server uses the MCP protocol to receive requests from AI assistants and uses ImageMagick (via the Wand library) to process images. Communication is done through stdio (standard input/output) and is compatible with Claude and other MCP-compatible assistants.
 
-Claudeが画像を二値化するリクエストを受け取ると:
-1. `cline_mcp_settings.json`の設定を使用してMCPサーバに接続
-2. 画像パスと閾値パラメータを指定して`binarize_image`ツールを呼び出す
-3. サーバはImageMagickを使用して画像を二値化し、結果を返す
+When Claude receives a request to binarize an image:
+1. It connects to the MCP server using the settings in `cline_mcp_settings.json`
+2. It calls the `binarize_image` tool with the image path and threshold parameters
+3. The server binarizes the image using ImageMagick and returns the result
 
-## ライセンス
+## License
 
 MIT
