@@ -46,12 +46,16 @@ def main(transport: str) -> int:
             # nameパラメータに基づいて処理を分岐
             is_binarize = False
             is_resize = False
+            is_convert_format = False
             if name == 'binarize_image':
                 log_to_file(f"Detected binarize_image call, will perform binarization")
                 is_binarize = True
             elif name == 'resize_image':
                 log_to_file(f"Detected resize_image call, will perform resizing")
                 is_resize = True
+            elif name == 'convert_image_format':
+                log_to_file(f"Detected convert_image_format call, will perform format conversion")
+                is_convert_format = True
             
             # 共通の引数処理
             image_path = None
@@ -109,6 +113,57 @@ def main(transport: str) -> int:
                 
                 log_to_file(f"Image binarized successfully. Output saved to: {output_path}")
                 return [types.TextContent(type="text", text=f"Image binarized successfully. Output saved to: {output_path}")]
+            
+            # フォーマット変換処理
+            elif is_convert_format:
+                # フォーマット変換用パラメータの取得
+                output_format = None
+                quality = None
+                
+                if arguments and isinstance(arguments, dict):
+                    if "output_format" in arguments:
+                        output_format = arguments.get("output_format")
+                        log_to_file(f"DEBUG: Using output_format from arguments: {output_format}")
+                    if "quality" in arguments:
+                        quality = arguments.get("quality")
+                        log_to_file(f"DEBUG: Using quality from arguments: {quality}")
+                
+                log_to_file(f"After argument processing - image_path: {image_path}, output_format: {output_format}, quality: {quality}")
+                
+                # パラメータの検証
+                if not output_format:
+                    log_to_file(f"Error: No output format specified")
+                    return [types.TextContent(type="text", text=f"Error: No output format specified")]
+                
+                # 出力フォーマットの正規化（小文字に変換し、ドットを削除）
+                output_format = output_format.lower().strip('.')
+                
+                # 品質パラメータの処理（JPEGなどの圧縮フォーマット用）
+                try:
+                    quality_int = int(quality) if quality is not None else 85
+                    if quality_int < 1:
+                        quality_int = 1
+                        log_to_file(f"Quality value out of range, using minimum: {quality_int}")
+                    elif quality_int > 100:
+                        quality_int = 100
+                        log_to_file(f"Quality value out of range, using maximum: {quality_int}")
+                except (TypeError, ValueError) as e:
+                    log_to_file(f"Error converting quality to integer: {e}")
+                    quality_int = 85
+                
+                # 出力ファイル名の作成
+                output_path = os.path.join(output_dir, f"{file_name}.{output_format}")
+                
+                # Process the image with ImageMagick using Wand
+                with Image(filename=image_path) as img:
+                    # 品質設定（JPEGなどの圧縮フォーマット用）
+                    img.compression_quality = quality_int
+                    
+                    # 画像を保存（フォーマットは拡張子から自動的に判断される）
+                    img.save(filename=output_path)
+                
+                log_to_file(f"Image format converted successfully. Output saved to: {output_path}")
+                return [types.TextContent(type="text", text=f"Image format converted successfully. Output saved to: {output_path}")]
             
             # リサイズ処理
             elif is_resize:
@@ -314,6 +369,29 @@ def main(transport: str) -> int:
                             "type": "number",
                             "description": "Threshold value for binarization (0.0 to 1.0)",
                             "default": 0.5
+                        }
+                    }
+                }
+            ),
+            types.Tool(
+                name="convert_image_format",
+                description="Convert an image from one format to another (e.g., PNG to JPG, BMP to TGA)",
+                inputSchema={
+                    "type": "object",
+                    "required": ["image_path", "output_format"],
+                    "properties": {
+                        "image_path": {
+                            "type": "string",
+                            "description": "Path to the image file to convert"
+                        },
+                        "output_format": {
+                            "type": "string",
+                            "description": "Output format (e.g., jpg, png, tiff, bmp, tga, webp, etc.)"
+                        },
+                        "quality": {
+                            "type": "number",
+                            "description": "Quality for lossy formats like JPG (1-100, higher is better quality)",
+                            "default": 85
                         }
                     }
                 }

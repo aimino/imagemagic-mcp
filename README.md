@@ -7,6 +7,7 @@ The ImageMagick MCP Server is a server that provides ImageMagick image processin
 - Image binarization processing (threshold can be specified)
 - Image color adjustment (hue, brightness, saturation can be adjusted)
 - Image resizing (width, height, or scale factor can be specified)
+- Image format conversion (convert between various formats like PNG, JPG, BMP, TGA, etc.)
 - Integration with AI assistants via MCP protocol
 - Display of processed image results
 
@@ -69,6 +70,7 @@ This server provides the following tools:
 - `binarize_image`: Binarize an image using ImageMagick
 - `modify_colors`: Adjust the hue, brightness, and saturation of an image using ImageMagick
 - `resize_image`: Resize an image using ImageMagick
+- `convert_image_format`: Convert an image from one format to another (e.g., PNG to JPG, BMP to TGA)
 
 ### MCP Server Configuration
 
@@ -186,6 +188,37 @@ Parameter descriptions:
 - `width`: New width in pixels. If only width is specified, height will be calculated to maintain aspect ratio.
 - `height`: New height in pixels. If only height is specified, width will be calculated to maintain aspect ratio.
 - `scale`: Scale factor (e.g., 0.5 for half size, 2.0 for double size). If specified, width and height are ignored.
+
+#### Example of Using the Format Conversion Feature
+
+In Claude, you can use it as follows:
+
+```
+I want to convert an image format using the imagemagick-mcp tool.
+```
+
+Claude can convert an image format using the MCP server with a command like this:
+
+```json
+{
+  "image_path": "/path/to/image.png",
+  "output_format": "jpg",
+  "quality": 90
+}
+```
+
+Or convert to other formats:
+
+```json
+{
+  "image_path": "/path/to/image.bmp",
+  "output_format": "tga"
+}
+```
+
+Parameter descriptions:
+- `output_format`: The target format to convert to (e.g., jpg, png, tiff, bmp, tga, webp, etc.)
+- `quality`: Quality for lossy formats like JPG (1-100, higher is better quality). Default is 85.
 
 ### How It Works
 
