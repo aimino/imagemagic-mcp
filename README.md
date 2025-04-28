@@ -25,6 +25,19 @@ cd imagemagic-mcp
 ```
 
 2. 依存関係のインストール:
+
+### Windows環境の場合:
+```bash
+# ImageMagickのインストール
+# 公式サイトからインストーラーをダウンロードしてインストール
+# https://imagemagick.org/script/download.php#windows
+# インストール時に「Install development headers and libraries for C and C++」オプションを選択
+
+# Pythonパッケージのインストール
+pip install wand mcp click
+```
+
+### Linux環境の場合:
 ```bash
 # ImageMagickのインストール
 sudo apt-get update
