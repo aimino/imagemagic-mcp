@@ -140,7 +140,6 @@ def main(transport: str) -> int:
             # 元の画像データを返す代わりに、処理済み画像へのパスを返す
             return [
                 types.TextContent(type="text", text=f"Image binarized successfully. Output saved to: {output_path}"),
-                types.TextContent(type="text", text=f"画像の二値化が完了しました。出力ファイル: {output_path}")
             ]
         except Exception as e:
             traceback_str = traceback.format_exc()
@@ -333,7 +332,6 @@ def main(transport: str) -> int:
             # 元の画像データを返す代わりに、処理済み画像へのパスを返す
             return [
                 types.TextContent(type="text", text=f"Image colors modified successfully. Output saved to: {output_path}"),
-                types.TextContent(type="text", text=f"画像の色調が変更されました。出力ファイル: {output_path}")
             ]
         except Exception as e:
             traceback_str = traceback.format_exc()
