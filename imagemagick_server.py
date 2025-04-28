@@ -150,6 +150,182 @@ def main(transport: str) -> int:
                 types.TextContent(type="text", text=f"Error: {str(e)}")
             ]
 
+    @app.call_tool()
+    async def modify_colors(
+        image_path: str = None,
+        hue_shift: float = 0.0,
+        brightness: float = 100.0,
+        saturation: float = 100.0,
+        **kwargs
+    ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+        """Modify the colors of an image using ImageMagick.
+        
+        Args:
+            image_path: Path to the image file to modify
+            hue_shift: Hue shift value in degrees (-360.0 to 360.0)
+            brightness: Brightness adjustment (0.0 to 200.0, 100.0 is original)
+            saturation: Saturation adjustment (0.0 to 200.0, 100.0 is original)
+        """
+        try:
+            log_to_file(f"Raw input - image_path: {repr(image_path)}, hue_shift: {repr(hue_shift)}, brightness: {repr(brightness)}, saturation: {repr(saturation)}, kwargs: {kwargs}")
+            log_to_file(f"DEBUG: Received arguments: {locals()}")
+            
+            # 特殊なケース：image_pathが'modify_colors'で、hue_shiftが辞書の場合
+            if image_path == 'modify_colors' and isinstance(hue_shift, dict):
+                log_to_file(f"DEBUG: Detected special case - image_path is 'modify_colors' and hue_shift is a dictionary")
+                if "image_path" in hue_shift:
+                    image_path = hue_shift.get("image_path")
+                    log_to_file(f"DEBUG: Using image_path from hue_shift dictionary: {image_path}")
+                if "hue_shift" in hue_shift:
+                    hue_shift = hue_shift.get("hue_shift")
+                    log_to_file(f"DEBUG: Using hue_shift from hue_shift dictionary: {hue_shift}")
+                if "brightness" in hue_shift:
+                    brightness = hue_shift.get("brightness")
+                    log_to_file(f"DEBUG: Using brightness from hue_shift dictionary: {brightness}")
+                if "saturation" in hue_shift:
+                    saturation = hue_shift.get("saturation")
+                    log_to_file(f"DEBUG: Using saturation from hue_shift dictionary: {saturation}")
+            
+            # デバッグ出力をさらに詳細に
+            log_to_file(f"DEBUG: kwargs type: {type(kwargs)}")
+            log_to_file(f"DEBUG: kwargs keys: {kwargs.keys() if kwargs else 'None'}")
+            if "arguments" in kwargs:
+                log_to_file(f"DEBUG: arguments type: {type(kwargs['arguments'])}")
+                log_to_file(f"DEBUG: arguments content: {kwargs['arguments']}")
+            
+            # 引数の処理をさらに改善
+            if kwargs:
+                if "arguments" in kwargs:
+                    args = kwargs["arguments"]
+                    log_to_file(f"DEBUG: Found arguments in kwargs: {args}")
+                    if isinstance(args, dict):
+                        if "image_path" in args:
+                            image_path = args["image_path"]
+                            log_to_file(f"DEBUG: Using image_path from arguments: {image_path}")
+                        if "hue_shift" in args:
+                            hue_shift = args["hue_shift"]
+                            log_to_file(f"DEBUG: Using hue_shift from arguments: {hue_shift}")
+                        if "brightness" in args:
+                            brightness = args["brightness"]
+                            log_to_file(f"DEBUG: Using brightness from arguments: {brightness}")
+                        if "saturation" in args:
+                            saturation = args["saturation"]
+                            log_to_file(f"DEBUG: Using saturation from arguments: {saturation}")
+            elif isinstance(image_path, dict):
+                log_to_file(f"Image path is a dictionary: {image_path}")
+                if "image_path" in image_path:
+                    image_path = image_path.get("image_path")
+                if "hue_shift" in image_path:
+                    hue_shift = image_path.get("hue_shift")
+                if "brightness" in image_path:
+                    brightness = image_path.get("brightness")
+                if "saturation" in image_path:
+                    saturation = image_path.get("saturation")
+            elif image_path and isinstance(image_path, str) and image_path.strip().startswith("{"):
+                try:
+                    json_data = json.loads(image_path)
+                    log_to_file(f"Parsed JSON from image_path: {json_data}")
+                    if "image_path" in json_data:
+                        image_path = json_data.get("image_path")
+                    if "hue_shift" in json_data:
+                        hue_shift = json_data.get("hue_shift")
+                    if "brightness" in json_data:
+                        brightness = json_data.get("brightness")
+                    if "saturation" in json_data:
+                        saturation = json_data.get("saturation")
+                except json.JSONDecodeError:
+                    log_to_file(f"Failed to parse JSON from image_path")
+            
+            # Validate inputs
+            if not image_path:
+                log_to_file("Error: No image path provided")
+                return [types.TextContent(type="text", text="Error: No image path provided")]
+            
+            log_to_file(f"Checking if file exists: {image_path}")
+            if not os.path.exists(image_path):
+                log_to_file(f"Error: Image file not found at {image_path}")
+                return [types.TextContent(type="text", text=f"Error: Image file not found at {image_path}")]
+            
+            # パラメータの範囲チェックと正規化
+            # 色相変更量の範囲チェック
+            hue_shift_float = float(hue_shift)
+            # 値を-360〜360の範囲に正規化
+            while hue_shift_float < -360.0:
+                hue_shift_float += 360.0
+            while hue_shift_float > 360.0:
+                hue_shift_float -= 360.0
+            
+            # 輝度の範囲チェック
+            brightness_float = float(brightness)
+            if brightness_float < 0.0:
+                brightness_float = 0.0
+                log_to_file(f"Brightness value out of range, using minimum: {brightness_float}")
+            elif brightness_float > 200.0:
+                brightness_float = 200.0
+                log_to_file(f"Brightness value out of range, using maximum: {brightness_float}")
+            
+            # 彩度の範囲チェック
+            saturation_float = float(saturation)
+            if saturation_float < 0.0:
+                saturation_float = 0.0
+                log_to_file(f"Saturation value out of range, using minimum: {saturation_float}")
+            elif saturation_float > 200.0:
+                saturation_float = 200.0
+                log_to_file(f"Saturation value out of range, using maximum: {saturation_float}")
+            
+            log_to_file(f"Using normalized values - hue_shift: {hue_shift_float}, brightness: {brightness_float}, saturation: {saturation_float}")
+            
+            # Create output filename
+            file_name, file_ext = os.path.splitext(os.path.basename(image_path))
+            output_dir = os.path.dirname(image_path)
+            output_path = os.path.join(output_dir, f"{file_name}_color_modified{file_ext}")
+            
+            # Process the image with ImageMagick using Wand
+            with Image(filename=image_path) as img:
+                # 色相、輝度、彩度を変更
+                # modulate関数のパラメータ:
+                # - brightness: 輝度（0〜200、100が元の輝度）
+                # - saturation: 彩度（0〜200、100が元の彩度）
+                # - hue: 色相（0〜200、100が元の色相）
+                # 色相の変更は100 + hue_shift * 100 / 360 で変換
+                img.modulate(
+                    brightness=brightness_float,
+                    saturation=saturation_float,
+                    hue=100.0 + hue_shift_float * 100.0 / 360.0
+                )
+                # Save the processed image
+                img.save(filename=output_path)
+            
+            log_to_file(f"Image colors modified successfully. Output saved to: {output_path}")
+            
+            # Read the processed image as base64 for embedding
+            with open(output_path, 'rb') as img_file:
+                img_data = base64.b64encode(img_file.read()).decode('utf-8')
+            
+            # Determine MIME type based on file extension
+            mime_type = "image/jpeg"  # Default
+            if file_ext.lower() in ['.png']:
+                mime_type = "image/png"
+            elif file_ext.lower() in ['.gif']:
+                mime_type = "image/gif"
+            elif file_ext.lower() in ['.bmp']:
+                mime_type = "image/bmp"
+            elif file_ext.lower() in ['.tiff', '.tif']:
+                mime_type = "image/tiff"
+            
+            # 元の画像データを返す代わりに、処理済み画像へのパスを返す
+            return [
+                types.TextContent(type="text", text=f"Image colors modified successfully. Output saved to: {output_path}"),
+                types.TextContent(type="text", text=f"画像の色調が変更されました。出力ファイル: {output_path}")
+            ]
+        except Exception as e:
+            traceback_str = traceback.format_exc()
+            log_to_file(f"Error in modify_colors: {traceback_str}")
+            
+            return [
+                types.TextContent(type="text", text=f"Error: {str(e)}")
+            ]
+
     @app.list_tools()
     async def list_tools() -> list[types.Tool]:
         """List the available tools for this MCP server."""
@@ -169,6 +345,35 @@ def main(transport: str) -> int:
                             "type": "number",
                             "description": "Threshold value for binarization (0.0 to 1.0)",
                             "default": 0.5
+                        }
+                    }
+                }
+            ),
+            types.Tool(
+                name="modify_colors",
+                description="Modify the colors (hue, brightness, saturation) of an image using ImageMagick",
+                inputSchema={
+                    "type": "object",
+                    "required": ["image_path"],
+                    "properties": {
+                        "image_path": {
+                            "type": "string",
+                            "description": "Path to the image file to modify"
+                        },
+                        "hue_shift": {
+                            "type": "number",
+                            "description": "Hue shift value in degrees (-360.0 to 360.0)",
+                            "default": 0.0
+                        },
+                        "brightness": {
+                            "type": "number",
+                            "description": "Brightness adjustment (0.0 to 200.0, 100.0 is original)",
+                            "default": 100.0
+                        },
+                        "saturation": {
+                            "type": "number",
+                            "description": "Saturation adjustment (0.0 to 200.0, 100.0 is original)",
+                            "default": 100.0
                         }
                     }
                 }
