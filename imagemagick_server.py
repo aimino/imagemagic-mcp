@@ -170,8 +170,25 @@ def main(transport: str) -> int:
             log_to_file(f"Raw input - image_path: {repr(image_path)}, hue_shift: {repr(hue_shift)}, brightness: {repr(brightness)}, saturation: {repr(saturation)}, kwargs: {kwargs}")
             log_to_file(f"DEBUG: Received arguments: {locals()}")
             
+            # 引数の処理を簡略化して改善
+            # まず、kwargsから引数を取得
+            if kwargs and "arguments" in kwargs and isinstance(kwargs["arguments"], dict):
+                args = kwargs["arguments"]
+                log_to_file(f"DEBUG: Found arguments in kwargs: {args}")
+                if "image_path" in args:
+                    image_path = args["image_path"]
+                    log_to_file(f"DEBUG: Using image_path from arguments: {image_path}")
+                if "hue_shift" in args:
+                    hue_shift = args["hue_shift"]
+                    log_to_file(f"DEBUG: Using hue_shift from arguments: {hue_shift}")
+                if "brightness" in args:
+                    brightness = args["brightness"]
+                    log_to_file(f"DEBUG: Using brightness from arguments: {brightness}")
+                if "saturation" in args:
+                    saturation = args["saturation"]
+                    log_to_file(f"DEBUG: Using saturation from arguments: {saturation}")
             # 特殊なケース：image_pathが'modify_colors'で、hue_shiftが辞書の場合
-            if image_path == 'modify_colors' and isinstance(hue_shift, dict):
+            elif image_path == 'modify_colors' and isinstance(hue_shift, dict):
                 log_to_file(f"DEBUG: Detected special case - image_path is 'modify_colors' and hue_shift is a dictionary")
                 if "image_path" in hue_shift:
                     image_path = hue_shift.get("image_path")
@@ -185,32 +202,7 @@ def main(transport: str) -> int:
                 if "saturation" in hue_shift:
                     saturation = hue_shift.get("saturation")
                     log_to_file(f"DEBUG: Using saturation from hue_shift dictionary: {saturation}")
-            
-            # デバッグ出力をさらに詳細に
-            log_to_file(f"DEBUG: kwargs type: {type(kwargs)}")
-            log_to_file(f"DEBUG: kwargs keys: {kwargs.keys() if kwargs else 'None'}")
-            if "arguments" in kwargs:
-                log_to_file(f"DEBUG: arguments type: {type(kwargs['arguments'])}")
-                log_to_file(f"DEBUG: arguments content: {kwargs['arguments']}")
-            
-            # 引数の処理をさらに改善
-            if kwargs:
-                if "arguments" in kwargs:
-                    args = kwargs["arguments"]
-                    log_to_file(f"DEBUG: Found arguments in kwargs: {args}")
-                    if isinstance(args, dict):
-                        if "image_path" in args:
-                            image_path = args["image_path"]
-                            log_to_file(f"DEBUG: Using image_path from arguments: {image_path}")
-                        if "hue_shift" in args:
-                            hue_shift = args["hue_shift"]
-                            log_to_file(f"DEBUG: Using hue_shift from arguments: {hue_shift}")
-                        if "brightness" in args:
-                            brightness = args["brightness"]
-                            log_to_file(f"DEBUG: Using brightness from arguments: {brightness}")
-                        if "saturation" in args:
-                            saturation = args["saturation"]
-                            log_to_file(f"DEBUG: Using saturation from arguments: {saturation}")
+            # image_pathが辞書の場合
             elif isinstance(image_path, dict):
                 log_to_file(f"Image path is a dictionary: {image_path}")
                 if "image_path" in image_path:
@@ -221,6 +213,7 @@ def main(transport: str) -> int:
                     brightness = image_path.get("brightness")
                 if "saturation" in image_path:
                     saturation = image_path.get("saturation")
+            # image_pathがJSON文字列の場合
             elif image_path and isinstance(image_path, str) and image_path.strip().startswith("{"):
                 try:
                     json_data = json.loads(image_path)
@@ -246,32 +239,56 @@ def main(transport: str) -> int:
                 log_to_file(f"Error: Image file not found at {image_path}")
                 return [types.TextContent(type="text", text=f"Error: Image file not found at {image_path}")]
             
-            # パラメータの範囲チェックと正規化
-            # 色相変更量の範囲チェック
-            hue_shift_float = float(hue_shift)
-            # 値を-360〜360の範囲に正規化
-            while hue_shift_float < -360.0:
-                hue_shift_float += 360.0
-            while hue_shift_float > 360.0:
-                hue_shift_float -= 360.0
+            # パラメータの型変換と範囲チェック（エラーハンドリングを追加）
+            # 特殊なケースの処理結果をログに出力
+            log_to_file(f"After argument processing - image_path: {image_path}, hue_shift: {hue_shift}, brightness: {brightness}, saturation: {saturation}")
             
-            # 輝度の範囲チェック
-            brightness_float = float(brightness)
-            if brightness_float < 0.0:
-                brightness_float = 0.0
-                log_to_file(f"Brightness value out of range, using minimum: {brightness_float}")
-            elif brightness_float > 200.0:
-                brightness_float = 200.0
-                log_to_file(f"Brightness value out of range, using maximum: {brightness_float}")
+            # 各パラメータを個別に処理して型変換エラーを回避
+            # 色相変更量の処理
+            try:
+                hue_shift_float = float(hue_shift) if hue_shift is not None else 0.0
+                # 値を-360〜360の範囲に正規化
+                while hue_shift_float < -360.0:
+                    hue_shift_float += 360.0
+                while hue_shift_float > 360.0:
+                    hue_shift_float -= 360.0
+            except (TypeError, ValueError) as e:
+                log_to_file(f"Error converting hue_shift to float: {e}")
+                hue_shift_float = 0.0
             
-            # 彩度の範囲チェック
-            saturation_float = float(saturation)
-            if saturation_float < 0.0:
-                saturation_float = 0.0
-                log_to_file(f"Saturation value out of range, using minimum: {saturation_float}")
-            elif saturation_float > 200.0:
-                saturation_float = 200.0
-                log_to_file(f"Saturation value out of range, using maximum: {saturation_float}")
+            # 輝度の処理
+            try:
+                brightness_float = float(brightness) if brightness is not None else 100.0
+                if brightness_float < 0.0:
+                    brightness_float = 0.0
+                    log_to_file(f"Brightness value out of range, using minimum: {brightness_float}")
+                elif brightness_float > 200.0:
+                    brightness_float = 200.0
+                    log_to_file(f"Brightness value out of range, using maximum: {brightness_float}")
+            except (TypeError, ValueError) as e:
+                log_to_file(f"Error converting brightness to float: {e}")
+                # 特殊なケースで取得したbrightnessの値がある場合はそれを使用
+                if image_path == 'modify_colors' and isinstance(hue_shift, dict) and 'brightness' in hue_shift:
+                    try:
+                        brightness_float = float(hue_shift['brightness'])
+                        log_to_file(f"Using brightness from hue_shift dictionary for float conversion: {brightness_float}")
+                    except (TypeError, ValueError):
+                        brightness_float = 100.0
+                else:
+                    brightness_float = 100.0
+            
+            # 彩度の処理
+            try:
+                saturation_float = float(saturation) if saturation is not None else 100.0
+                if saturation_float < 0.0:
+                    saturation_float = 0.0
+                    log_to_file(f"Saturation value out of range, using minimum: {saturation_float}")
+                elif saturation_float > 200.0:
+                    saturation_float = 200.0
+                    log_to_file(f"Saturation value out of range, using maximum: {saturation_float}")
+            except (TypeError, ValueError) as e:
+                log_to_file(f"Error converting saturation to float: {e}")
+                saturation_float = 100.0
             
             log_to_file(f"Using normalized values - hue_shift: {hue_shift_float}, brightness: {brightness_float}, saturation: {saturation_float}")
             
