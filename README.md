@@ -9,7 +9,6 @@ The ImageMagick MCP Server is a server that provides ImageMagick image processin
 - Image resizing (width, height, or scale factor can be specified)
 - Image format conversion (convert between various formats like PNG, JPG, BMP, TGA, etc.)
 - Integration with AI assistants via MCP protocol
-- Display of processed image results
 
 ## Requirements
 
