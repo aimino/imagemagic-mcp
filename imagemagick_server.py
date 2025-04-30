@@ -47,6 +47,7 @@ def main(transport: str) -> int:
             is_binarize = False
             is_resize = False
             is_convert_format = False
+            is_blur = False
             if name == 'binarize_image':
                 log_to_file(f"Detected binarize_image call, will perform binarization")
                 is_binarize = True
@@ -56,6 +57,9 @@ def main(transport: str) -> int:
             elif name == 'convert_image_format':
                 log_to_file(f"Detected convert_image_format call, will perform format conversion")
                 is_convert_format = True
+            elif name == 'blur_image':
+                log_to_file(f"Detected blur_image call, will perform blurring")
+                is_blur = True
             
             # 共通の引数処理
             image_path = None
@@ -261,6 +265,51 @@ def main(transport: str) -> int:
                 log_to_file(f"Image resized successfully. Output saved to: {output_path}")
                 return [types.TextContent(type="text", text=f"Image resized successfully. Output saved to: {output_path}")]
             
+            # ぼかし処理
+            elif is_blur:
+                # ぼかし用パラメータの取得
+                radius = None
+                sigma = None
+                
+                if arguments and isinstance(arguments, dict):
+                    if "radius" in arguments:
+                        radius = arguments.get("radius")
+                        log_to_file(f"DEBUG: Using radius from arguments: {radius}")
+                    if "sigma" in arguments:
+                        sigma = arguments.get("sigma")
+                        log_to_file(f"DEBUG: Using sigma from arguments: {sigma}")
+                
+                log_to_file(f"After argument processing - image_path: {image_path}, radius: {radius}, sigma: {sigma}")
+                
+                # パラメータの型変換と検証
+                try:
+                    radius_float = float(radius) if radius is not None else 0.0
+                    if radius_float < 0.0:
+                        log_to_file(f"Radius value must be non-negative, using default: 0.0")
+                        radius_float = 0.0
+                    
+                    sigma_float = float(sigma) if sigma is not None else 3.0
+                    if sigma_float < 0.0:
+                        log_to_file(f"Sigma value must be non-negative, using default: 3.0")
+                        sigma_float = 3.0
+                except (TypeError, ValueError) as e:
+                    log_to_file(f"Error converting blur parameters to float: {e}")
+                    radius_float = 0.0
+                    sigma_float = 3.0
+                    log_to_file(f"Using default blur parameters due to conversion error: radius={radius_float}, sigma={sigma_float}")
+                
+                output_path = os.path.join(output_dir, f"{file_name}_blurred{file_ext}")
+                
+                # Process the image with ImageMagick using Wand
+                with Image(filename=image_path) as img:
+                    # ぼかし処理を適用
+                    img.blur(radius=radius_float, sigma=sigma_float)
+                    # 処理した画像を保存
+                    img.save(filename=output_path)
+                
+                log_to_file(f"Image blurred successfully. Output saved to: {output_path}")
+                return [types.TextContent(type="text", text=f"Image blurred successfully. Output saved to: {output_path}")]
+            
             # 色調変更処理
             else:
                 # 色調変更用パラメータの取得
@@ -369,6 +418,30 @@ def main(transport: str) -> int:
                             "type": "number",
                             "description": "Threshold value for binarization (0.0 to 1.0)",
                             "default": 0.5
+                        }
+                    }
+                }
+            ),
+            types.Tool(
+                name="blur_image",
+                description="Blur an image using ImageMagick",
+                inputSchema={
+                    "type": "object",
+                    "required": ["image_path"],
+                    "properties": {
+                        "image_path": {
+                            "type": "string",
+                            "description": "Path to the image file to blur"
+                        },
+                        "radius": {
+                            "type": "number",
+                            "description": "Blur radius (0.0 or higher, 0.0 means auto-select)",
+                            "default": 0.0
+                        },
+                        "sigma": {
+                            "type": "number",
+                            "description": "Blur sigma - controls the blur strength (higher values create stronger blur)",
+                            "default": 3.0
                         }
                     }
                 }

@@ -8,6 +8,7 @@ The ImageMagick MCP Server is a server that provides ImageMagick image processin
 - Image color adjustment (hue, brightness, saturation can be adjusted)
 - Image resizing (width, height, or scale factor can be specified)
 - Image format conversion (convert between various formats like PNG, JPG, BMP, TGA, etc.)
+- Image blurring (radius and sigma can be specified)
 - Integration with AI assistants via MCP protocol
 
 ## Requirements
@@ -70,6 +71,7 @@ This server provides the following tools:
 - `modify_colors`: Adjust the hue, brightness, and saturation of an image using ImageMagick
 - `resize_image`: Resize an image using ImageMagick
 - `convert_image_format`: Convert an image from one format to another (e.g., PNG to JPG, BMP to TGA)
+- `blur_image`: Blur an image using ImageMagick
 
 ### MCP Server Configuration
 
@@ -218,6 +220,37 @@ Or convert to other formats:
 Parameter descriptions:
 - `output_format`: The target format to convert to (e.g., jpg, png, tiff, bmp, tga, webp, etc.)
 - `quality`: Quality for lossy formats like JPG (1-100, higher is better quality). Default is 85.
+
+#### Example of Using the Blur Feature
+
+In Claude, you can use it as follows:
+
+```
+I want to blur an image using the imagemagick-mcp tool.
+```
+
+Claude can blur an image using the MCP server with a command like this:
+
+```json
+{
+  "image_path": "/path/to/image.jpg",
+  "sigma": 5.0
+}
+```
+
+Or with more control over the blur parameters:
+
+```json
+{
+  "image_path": "/path/to/image.jpg",
+  "radius": 0.0,
+  "sigma": 3.0
+}
+```
+
+Parameter descriptions:
+- `radius`: Blur radius (0.0 or higher, 0.0 means auto-select). Default is 0.0.
+- `sigma`: Blur sigma - controls the blur strength (higher values create stronger blur). Default is 3.0.
 
 ### How It Works
 
