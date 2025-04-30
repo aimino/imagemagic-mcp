@@ -9,6 +9,7 @@ The ImageMagick MCP Server is a server that provides ImageMagick image processin
 - Image resizing (width, height, or scale factor can be specified)
 - Image format conversion (convert between various formats like PNG, JPG, BMP, TGA, etc.)
 - Image blurring (radius and sigma can be specified)
+- Image grayscale conversion
 - Integration with AI assistants via MCP protocol
 
 ## Requirements
@@ -72,6 +73,7 @@ This server provides the following tools:
 - `resize_image`: Resize an image using ImageMagick
 - `convert_image_format`: Convert an image from one format to another (e.g., PNG to JPG, BMP to TGA)
 - `blur_image`: Blur an image using ImageMagick
+- `grayscale_image`: Convert an image to grayscale using ImageMagick
 
 ### MCP Server Configuration
 
@@ -251,6 +253,24 @@ Or with more control over the blur parameters:
 Parameter descriptions:
 - `radius`: Blur radius (0.0 or higher, 0.0 means auto-select). Default is 0.0.
 - `sigma`: Blur sigma - controls the blur strength (higher values create stronger blur). Default is 3.0.
+
+#### Example of Using the Grayscale Conversion Feature
+
+In Claude, you can use it as follows:
+
+```
+I want to convert an image to grayscale using the imagemagick-mcp tool.
+```
+
+Claude can convert an image to grayscale using the MCP server with a command like this:
+
+```json
+{
+  "image_path": "/path/to/image.jpg"
+}
+```
+
+The grayscale conversion simply removes all color information from the image, leaving only the luminance (brightness) values. The output will be saved as "[original_filename]_grayscale.[original_extension]".
 
 ### How It Works
 

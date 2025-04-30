@@ -48,6 +48,7 @@ def main(transport: str) -> int:
             is_resize = False
             is_convert_format = False
             is_blur = False
+            is_grayscale = False
             if name == 'binarize_image':
                 log_to_file(f"Detected binarize_image call, will perform binarization")
                 is_binarize = True
@@ -60,6 +61,9 @@ def main(transport: str) -> int:
             elif name == 'blur_image':
                 log_to_file(f"Detected blur_image call, will perform blurring")
                 is_blur = True
+            elif name == 'grayscale_image':
+                log_to_file(f"Detected grayscale_image call, will perform grayscale conversion")
+                is_grayscale = True
             
             # 共通の引数処理
             image_path = None
@@ -310,8 +314,22 @@ def main(transport: str) -> int:
                 log_to_file(f"Image blurred successfully. Output saved to: {output_path}")
                 return [types.TextContent(type="text", text=f"Image blurred successfully. Output saved to: {output_path}")]
             
+            # グレースケール変換処理
+            elif is_grayscale:
+                output_path = os.path.join(output_dir, f"{file_name}_grayscale{file_ext}")
+                
+                # Process the image with ImageMagick using Wand
+                with Image(filename=image_path) as img:
+                    # グレースケールに変換
+                    img.type = 'grayscale'
+                    # 処理した画像を保存
+                    img.save(filename=output_path)
+                
+                log_to_file(f"Image converted to grayscale successfully. Output saved to: {output_path}")
+                return [types.TextContent(type="text", text=f"Image converted to grayscale successfully. Output saved to: {output_path}")]
+            
             # 色調変更処理
-            else:
+            elif name == 'modify_colors':
                 # 色調変更用パラメータの取得
                 hue_shift = 0.0  # デフォルト値
                 brightness = 100.0  # デフォルト値
@@ -391,6 +409,12 @@ def main(transport: str) -> int:
                 
                 log_to_file(f"Image colors modified successfully. Output saved to: {output_path}")
                 return [types.TextContent(type="text", text=f"Image colors modified successfully. Output saved to: {output_path}")]
+            
+            # 当てはまる機能がない場合はエラーを返す
+            else:
+                error_message = f"Error: Unknown tool name '{name}'. Available tools are: binarize_image, blur_image, convert_image_format, grayscale_image, modify_colors, resize_image"
+                log_to_file(error_message)
+                return [types.TextContent(type="text", text=error_message)]
         except Exception as e:
             traceback_str = traceback.format_exc()
             log_to_file(f"Error in process_image: {traceback_str}")
@@ -523,6 +547,20 @@ def main(transport: str) -> int:
                             "type": "number",
                             "description": "Scale factor (e.g., 0.5 for half size, 2.0 for double size). If specified, width and height are ignored.",
                             "default": None
+                        }
+                    }
+                }
+            ),
+            types.Tool(
+                name="grayscale_image",
+                description="Convert an image to grayscale using ImageMagick",
+                inputSchema={
+                    "type": "object",
+                    "required": ["image_path"],
+                    "properties": {
+                        "image_path": {
+                            "type": "string",
+                            "description": "Path to the image file to convert to grayscale"
                         }
                     }
                 }
