@@ -10,6 +10,7 @@ The ImageMagick MCP Server is a server that provides ImageMagick image processin
 - Image format conversion (convert between various formats like PNG, JPG, BMP, TGA, etc.)
 - Image blurring (radius and sigma can be specified)
 - Image grayscale conversion
+- Image information retrieval (get detailed metadata and properties)
 - Integration with AI assistants via MCP protocol
 
 ## Requirements
@@ -74,6 +75,7 @@ This server provides the following tools:
 - `convert_image_format`: Convert an image from one format to another (e.g., PNG to JPG, BMP to TGA)
 - `blur_image`: Blur an image using ImageMagick
 - `grayscale_image`: Convert an image to grayscale using ImageMagick
+- `get_image_info`: Get detailed information about an image (format, dimensions, file size, etc.)
 
 ### MCP Server Configuration
 
@@ -271,6 +273,34 @@ Claude can convert an image to grayscale using the MCP server with a command lik
 ```
 
 The grayscale conversion simply removes all color information from the image, leaving only the luminance (brightness) values. The output will be saved as "[original_filename]_grayscale.[original_extension]".
+
+#### Example of Using the Image Information Feature
+
+In Claude, you can use it as follows:
+
+```
+I want to get information about an image using the imagemagick-mcp tool.
+```
+
+Claude can retrieve image information using the MCP server with a command like this:
+
+```json
+{
+  "image_path": "/path/to/image.jpg"
+}
+```
+
+This will return detailed information about the image including:
+- Filename and full path
+- Format (JPEG, PNG, etc.)
+- Dimensions (width x height in pixels)
+- Color depth (bits per channel)
+- Colorspace (RGB, CMYK, etc.)
+- Compression type
+- File size (in human-readable format)
+- Whether the image has an alpha channel
+- Image type classification
+- Resolution (DPI) if available
 
 ### How It Works
 

@@ -49,6 +49,7 @@ def main(transport: str) -> int:
             is_convert_format = False
             is_blur = False
             is_grayscale = False
+            is_get_info = False
             if name == 'binarize_image':
                 log_to_file(f"Detected binarize_image call, will perform binarization")
                 is_binarize = True
@@ -64,6 +65,9 @@ def main(transport: str) -> int:
             elif name == 'grayscale_image':
                 log_to_file(f"Detected grayscale_image call, will perform grayscale conversion")
                 is_grayscale = True
+            elif name == 'get_image_info':
+                log_to_file(f"Detected get_image_info call, will get image information")
+                is_get_info = True
             
             # 共通の引数処理
             image_path = None
@@ -328,6 +332,57 @@ def main(transport: str) -> int:
                 log_to_file(f"Image converted to grayscale successfully. Output saved to: {output_path}")
                 return [types.TextContent(type="text", text=f"Image converted to grayscale successfully. Output saved to: {output_path}")]
             
+            # 画像情報取得処理
+            elif is_get_info:
+                # Process the image with ImageMagick using Wand
+                with Image(filename=image_path) as img:
+                    # 基本情報を取得
+                    image_info = {
+                        "filename": os.path.basename(image_path),
+                        "full_path": image_path,
+                        "format": img.format,
+                        "width": img.width,
+                        "height": img.height,
+                        "depth": img.depth,
+                        "colorspace": img.colorspace,
+                        "compression": img.compression,
+                        "resolution": {
+                            "x": getattr(img.resolution, 'x', None) if hasattr(img, 'resolution') else None,
+                            "y": getattr(img.resolution, 'y', None) if hasattr(img, 'resolution') else None
+                        },
+                        "file_size_bytes": os.path.getsize(image_path),
+                        "has_alpha": img.alpha_channel,
+                        "type": img.type
+                    }
+                    
+                    # ファイルサイズを人間が読める形式に変換
+                    file_size = image_info["file_size_bytes"]
+                    if file_size < 1024:
+                        size_str = f"{file_size} bytes"
+                    elif file_size < 1024 * 1024:
+                        size_str = f"{file_size / 1024:.1f} KB"
+                    else:
+                        size_str = f"{file_size / (1024 * 1024):.1f} MB"
+                    
+                    # 結果を整理して表示
+                    result_text = f"""Image Information:
+Filename: {image_info['filename']}
+Path: {image_info['full_path']}
+Format: {image_info['format']}
+Dimensions: {image_info['width']} x {image_info['height']} pixels
+Color Depth: {image_info['depth']} bits
+Colorspace: {image_info['colorspace']}
+Compression: {image_info['compression']}
+File Size: {size_str}
+Has Alpha Channel: {image_info['has_alpha']}
+Image Type: {image_info['type']}"""
+                    
+                    if image_info['resolution']['x'] and image_info['resolution']['y']:
+                        result_text += f"\nResolution: {image_info['resolution']['x']:.1f} x {image_info['resolution']['y']:.1f} DPI"
+                
+                log_to_file(f"Image information retrieved successfully for: {image_path}")
+                return [types.TextContent(type="text", text=result_text)]
+            
             # 色調変更処理
             elif name == 'modify_colors':
                 # 色調変更用パラメータの取得
@@ -412,7 +467,7 @@ def main(transport: str) -> int:
             
             # 当てはまる機能がない場合はエラーを返す
             else:
-                error_message = f"Error: Unknown tool name '{name}'. Available tools are: binarize_image, blur_image, convert_image_format, grayscale_image, modify_colors, resize_image"
+                error_message = f"Error: Unknown tool name '{name}'. Available tools are: binarize_image, blur_image, convert_image_format, get_image_info, grayscale_image, modify_colors, resize_image"
                 log_to_file(error_message)
                 return [types.TextContent(type="text", text=error_message)]
         except Exception as e:
@@ -561,6 +616,20 @@ def main(transport: str) -> int:
                         "image_path": {
                             "type": "string",
                             "description": "Path to the image file to convert to grayscale"
+                        }
+                    }
+                }
+            ),
+            types.Tool(
+                name="get_image_info",
+                description="Get detailed information about an image using ImageMagick",
+                inputSchema={
+                    "type": "object",
+                    "required": ["image_path"],
+                    "properties": {
+                        "image_path": {
+                            "type": "string",
+                            "description": "Path to the image file to analyze"
                         }
                     }
                 }
