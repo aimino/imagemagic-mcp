@@ -50,6 +50,7 @@ def main(transport: str) -> int:
             is_blur = False
             is_grayscale = False
             is_get_info = False
+            is_apply_filter = False
             if name == 'binarize_image':
                 log_to_file(f"Detected binarize_image call, will perform binarization")
                 is_binarize = True
@@ -68,6 +69,9 @@ def main(transport: str) -> int:
             elif name == 'get_image_info':
                 log_to_file(f"Detected get_image_info call, will get image information")
                 is_get_info = True
+            elif name == 'apply_filter':
+                log_to_file(f"Detected apply_filter call, will apply image filter")
+                is_apply_filter = True
             
             # 共通の引数処理
             image_path = None
@@ -383,6 +387,96 @@ Image Type: {image_info['type']}"""
                 log_to_file(f"Image information retrieved successfully for: {image_path}")
                 return [types.TextContent(type="text", text=result_text)]
             
+            # フィルター適用処理
+            elif is_apply_filter:
+                # フィルター用パラメータの取得
+                filter_type = None
+                filter_strength = 1.0  # デフォルト値
+                
+                if arguments and isinstance(arguments, dict):
+                    if "filter_type" in arguments:
+                        filter_type = arguments.get("filter_type")
+                        log_to_file(f"DEBUG: Using filter_type from arguments: {filter_type}")
+                    if "filter_strength" in arguments:
+                        filter_strength = arguments.get("filter_strength")
+                        log_to_file(f"DEBUG: Using filter_strength from arguments: {filter_strength}")
+                
+                log_to_file(f"After argument processing - image_path: {image_path}, filter_type: {filter_type}, filter_strength: {filter_strength}")
+                
+                # パラメータの検証
+                if not filter_type:
+                    log_to_file(f"Error: No filter type specified")
+                    return [types.TextContent(type="text", text=f"Error: No filter type specified")]
+                
+                # フィルター強度の処理
+                try:
+                    strength_float = float(filter_strength) if filter_strength is not None else 1.0
+                    if strength_float < 0.0:
+                        strength_float = 0.0
+                        log_to_file(f"Filter strength out of range, using minimum: {strength_float}")
+                    elif strength_float > 10.0:
+                        strength_float = 10.0
+                        log_to_file(f"Filter strength out of range, using maximum: {strength_float}")
+                except (TypeError, ValueError) as e:
+                    log_to_file(f"Error converting filter_strength to float: {e}")
+                    strength_float = 1.0
+                
+                # 出力ファイル名の作成
+                output_path = os.path.join(output_dir, f"{file_name}_{filter_type}_filtered{file_ext}")
+                
+                # Process the image with ImageMagick using Wand
+                with Image(filename=image_path) as img:
+                    # フィルタータイプに応じて処理を実行
+                    if filter_type.lower() == "sharpen":
+                        # シャープネスフィルター
+                        img.sharpen(radius=0.0, sigma=strength_float)
+                    elif filter_type.lower() == "edge":
+                        # エッジ検出フィルター
+                        img.edge(radius=strength_float)
+                    elif filter_type.lower() == "emboss":
+                        # エンボスフィルター
+                        img.emboss(radius=strength_float, sigma=1.0)
+                    elif filter_type.lower() == "oil_paint":
+                        # 油絵風フィルター
+                        img.oil_paint(radius=strength_float)
+                    elif filter_type.lower() == "charcoal":
+                        # 木炭画風フィルター
+                        img.charcoal(radius=strength_float, sigma=1.0)
+                    elif filter_type.lower() == "sketch":
+                        # スケッチ風フィルター
+                        img.sketch(radius=strength_float, sigma=1.0, angle=45.0)
+                    elif filter_type.lower() == "wave":
+                        # 波形歪みフィルター
+                        img.wave(amplitude=strength_float * 5.0, wave_length=strength_float * 20.0)
+                    elif filter_type.lower() == "swirl":
+                        # 渦巻きフィルター
+                        img.swirl(degree=strength_float * 90.0)
+                    elif filter_type.lower() == "implode":
+                        # 内破フィルター
+                        img.implode(amount=strength_float * 0.5)
+                    elif filter_type.lower() == "solarize":
+                        # ソラリゼーションフィルター
+                        img.solarize(threshold=strength_float * 0.5)
+                    elif filter_type.lower() == "spread":
+                        # スプレッドフィルター
+                        img.spread(radius=strength_float * 3.0)
+                    elif filter_type.lower() == "noise":
+                        # ノイズ追加フィルター
+                        # Wandのノイズタイプを使用
+                        from wand.image import NOISE_TYPES
+                        noise_type = 'gaussian' if 'gaussian' in NOISE_TYPES else list(NOISE_TYPES.keys())[0]
+                        img.noise(noise_type, attenuate=strength_float)
+                    else:
+                        error_message = f"Error: Unknown filter type '{filter_type}'. Available filters: sharpen, edge, emboss, oil_paint, charcoal, sketch, wave, swirl, implode, solarize, spread, noise"
+                        log_to_file(error_message)
+                        return [types.TextContent(type="text", text=error_message)]
+                    
+                    # 処理した画像を保存
+                    img.save(filename=output_path)
+                
+                log_to_file(f"Filter '{filter_type}' applied successfully. Output saved to: {output_path}")
+                return [types.TextContent(type="text", text=f"Filter '{filter_type}' applied successfully. Output saved to: {output_path}")]
+            
             # 色調変更処理
             elif name == 'modify_colors':
                 # 色調変更用パラメータの取得
@@ -467,7 +561,7 @@ Image Type: {image_info['type']}"""
             
             # 当てはまる機能がない場合はエラーを返す
             else:
-                error_message = f"Error: Unknown tool name '{name}'. Available tools are: binarize_image, blur_image, convert_image_format, get_image_info, grayscale_image, modify_colors, resize_image"
+                error_message = f"Error: Unknown tool name '{name}'. Available tools are: apply_filter, binarize_image, blur_image, convert_image_format, get_image_info, grayscale_image, modify_colors, resize_image"
                 log_to_file(error_message)
                 return [types.TextContent(type="text", text=error_message)]
         except Exception as e:
@@ -482,6 +576,29 @@ Image Type: {image_info['type']}"""
     async def list_tools() -> list[types.Tool]:
         """List the available tools for this MCP server."""
         return [
+            types.Tool(
+                name="apply_filter",
+                description="Apply various image filters using ImageMagick",
+                inputSchema={
+                    "type": "object",
+                    "required": ["image_path", "filter_type"],
+                    "properties": {
+                        "image_path": {
+                            "type": "string",
+                            "description": "Path to the image file to apply filter to"
+                        },
+                        "filter_type": {
+                            "type": "string",
+                            "description": "Type of filter to apply (sharpen, edge, emboss, oil_paint, charcoal, sketch, wave, swirl, implode, solarize, spread, noise)"
+                        },
+                        "filter_strength": {
+                            "type": "number",
+                            "description": "Strength of the filter effect (0.0 to 10.0)",
+                            "default": 1.0
+                        }
+                    }
+                }
+            ),
             types.Tool(
                 name="binarize_image",
                 description="Binarize an image using ImageMagick",

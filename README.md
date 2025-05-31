@@ -11,6 +11,7 @@ The ImageMagick MCP Server is a server that provides ImageMagick image processin
 - Image blurring (radius and sigma can be specified)
 - Image grayscale conversion
 - Image information retrieval (get detailed metadata and properties)
+- Image filter application (sharpen, edge detection, emboss, artistic effects, and more)
 - Integration with AI assistants via MCP protocol
 
 ## Requirements
@@ -76,6 +77,7 @@ This server provides the following tools:
 - `blur_image`: Blur an image using ImageMagick
 - `grayscale_image`: Convert an image to grayscale using ImageMagick
 - `get_image_info`: Get detailed information about an image (format, dimensions, file size, etc.)
+- `apply_filter`: Apply various image filters and effects using ImageMagick
 
 ### MCP Server Configuration
 
@@ -302,14 +304,60 @@ This will return detailed information about the image including:
 - Image type classification
 - Resolution (DPI) if available
 
+#### Example of Using the Filter Application Feature
+
+In Claude, you can use it as follows:
+
+```
+I want to apply a filter to an image using the imagemagick-mcp tool.
+```
+
+Claude can apply various filters to an image using the MCP server with a command like this:
+
+```json
+{
+  "image_path": "/path/to/image.jpg",
+  "filter_type": "sharpen",
+  "filter_strength": 2.0
+}
+```
+
+Or apply artistic effects:
+
+```json
+{
+  "image_path": "/path/to/image.jpg",
+  "filter_type": "oil_paint",
+  "filter_strength": 3.0
+}
+```
+
+Available filter types:
+- `sharpen`: Enhance image sharpness
+- `edge`: Edge detection filter
+- `emboss`: Create embossed effect
+- `oil_paint`: Oil painting artistic effect
+- `charcoal`: Charcoal drawing effect
+- `sketch`: Pencil sketch effect
+- `wave`: Wave distortion effect
+- `swirl`: Swirl distortion effect
+- `implode`: Implosion distortion effect
+- `solarize`: Solarization effect
+- `spread`: Spread/dispersion effect
+- `noise`: Add noise to the image
+
+Parameter descriptions:
+- `filter_type`: The type of filter to apply (required)
+- `filter_strength`: Intensity of the filter effect (0.0 to 10.0). Default is 1.0.
+
 ### How It Works
 
 The server uses the MCP protocol to receive requests from AI assistants and uses ImageMagick (via the Wand library) to process images. Communication is done through stdio (standard input/output) and is compatible with Claude and other MCP-compatible assistants.
 
-When Claude receives a request to binarize an image:
+When Claude receives a request to process an image:
 1. It connects to the MCP server using the settings in `cline_mcp_settings.json`
-2. It calls the `binarize_image` tool with the image path and threshold parameters
-3. The server binarizes the image using ImageMagick and returns the result
+2. It calls the appropriate tool (e.g., `binarize_image`, `apply_filter`, etc.) with the required parameters
+3. The server processes the image using ImageMagick and returns the result
 
 ## License
 
