@@ -6,6 +6,10 @@ imagemagick_server_log.txt
 *.tmp
 *.temp
 
+# プロジェクト固有のファイル
+CLAUDE.md
+future_features.txt
+
 # Python関連
 __pycache__/
 *.py[cod]
